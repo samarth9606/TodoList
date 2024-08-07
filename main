@@ -1,0 +1,128 @@
+import java.sql.*;
+import java.util.Scanner;
+
+public class TodoApp {
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/todo_db";
+    private static final String DB_USER = "root";
+    private static final String DB_PASSWORD = "password";
+    private static Connection connection;
+
+    public static void main(String[] args) {
+        try {
+            // Establish connection
+            connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+            Scanner scanner = new Scanner(System.in);
+            boolean running = true;
+
+            while (running) {
+                System.out.println("---- TO-DO LIST -----");
+                System.out.println("1. Add task");
+                System.out.println("2. Delete task");
+                System.out.println("3. View All Tasks");
+                System.out.println("4. Update task");
+                System.out.println("5. Exit");
+                System.out.print("Enter your choice: ");
+                int choice = scanner.nextInt();
+                scanner.nextLine(); // Consume newline
+
+                switch (choice) {
+                    case 1:
+                        addTask(scanner);
+                        break;
+                    case 2:
+                        deleteTask(scanner);
+                        break;
+                    case 3:
+                        viewTasks();
+                        break;
+                    case 4:
+                        updateTask(scanner);
+                        break;
+                    case 5:
+                        running = false;
+                        System.out.println("Exiting...");
+                        break;
+                    default:
+                        System.out.println("Invalid choice. Please enter a number between 1 and 5.");
+                }
+            }
+
+            // Close connection
+            connection.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void addTask(Scanner scanner) {
+        System.out.print("Enter task description: ");
+        String description = scanner.nextLine();
+        String sql = "INSERT INTO tasks (description, completed) VALUES (?, false)";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, description);
+            stmt.executeUpdate();
+            System.out.println("Task added successfully.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void deleteTask(Scanner scanner) {
+        viewTasks();
+        System.out.print("Enter task ID to delete: ");
+        int id = scanner.nextInt();
+        String sql = "DELETE FROM tasks WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, id);
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Task deleted successfully.");
+            } else {
+                System.out.println("Task not found.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void viewTasks() {
+        String sql = "SELECT * FROM tasks";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            System.out.println("Tasks:");
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String description = rs.getString("description");
+                boolean completed = rs.getBoolean("completed");
+                System.out.printf("%d. %s (Completed: %s)%n", id, description, completed ? "Yes" : "No");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void updateTask(Scanner scanner) {
+        viewTasks();
+        System.out.print("Enter task ID to update: ");
+        int id = scanner.nextInt();
+        scanner.nextLine(); // Consume newline
+        System.out.print("Enter new description: ");
+        String description = scanner.nextLine();
+        System.out.print("Is the task completed? (true/false): ");
+        boolean completed = scanner.nextBoolean();
+        String sql = "UPDATE tasks SET description = ?, completed = ? WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, description);
+            stmt.setBoolean(2, completed);
+            stmt.setInt(3, id);
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Task updated successfully.");
+            } else {
+                System.out.println("Task not found.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
